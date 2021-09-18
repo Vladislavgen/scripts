@@ -38,13 +38,65 @@ def get_request_body(status, payment_method):
     return request_body
 
 
-def get_transctions(url, creds):
+def get_transctions(url, creds, notify=None):
+
+    successful_count = 0
+    failed_count = 0
+    payment_methods_info = {"credit_card": {
+                                'successful_count': successful_count,
+                                'failed_count': failed_count},
+                      "alternative": {
+                                'successful_count': successful_count,
+                                'failed_count': failed_count},
+                        "erip": {
+                                'successful_count': successful_count,
+                                'failed_count': failed_count},
+                        "all": {
+                            'successful_count': successful_count,
+                            'failed_count': failed_count}
+                    }
+
+    headers = {'X-Api-Version': '3'}
+
+    body = get_request_body("successful", 'credit_card')
+    result = http_request_post(url, body, headers, creds)
+    payment_methods_info['credit_card']['successful_count'] += result.get('transactions').get('count')
+    payment_methods_info['all']['successful_count'] += result.get('transactions').get('count')
+    body.update(payment_methods_info)
+    # print(body)
+
+    ####
+
+    body = get_request_body("failed", 'credit_card')
+    result = http_request_post(url, body, headers, creds)
+    payment_methods_info['credit_card']['failed_count'] += result.get('transactions').get('count')
+    payment_methods_info['all']['failed_count'] += result.get('transactions').get('count')
+    body.update(payment_methods_info)
+
+    body.update({'ratio': float("{0:.2f}".format((payment_methods_info['all']['successful_count'] / (payment_methods_info['credit_card']['failed_count'] + payment_methods_info['all']['successful_count']) * 100)))})
+    if notify:
+
+        message = {
+            'date_from': (datetime.datetime.now() - datetime.timedelta(minutes=60)).strftime('%Y-%m-%d %H:%M'),
+            'date_to': datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'successful_count': payment_methods_info['all']['successful_count'],
+            'failed_count': payment_methods_info['credit_card']['failed_count'],
+            'ratio': float("{0:.2f}".format((payment_methods_info['all']['successful_count'] / (payment_methods_info['credit_card']['failed_count'] + payment_methods_info['all']['successful_count']) * 100)))
+        }
+        return message
+
+    return body
+
+
+def get_reports(url, creds):
     successful_count = 10
     failed_count = 10
     payment_method = ("credit_card", "alternative")
     # transaction_status = ("successful", "failed")
 
     headers = {'X-Api-Version': '3'}
+
+
     for method in payment_method:
         result = http_request_post(url, get_request_body("successful", method), headers, creds)
         successful_count += result.get('transactions').get('count')
@@ -63,7 +115,6 @@ def get_transctions(url, creds):
 
 
 def send_notify(contacts, message):
-
     text_message = f"Constantpos API. Total stats from {message.get('date_from')}  to {message.get('date_to')}: " \
               f"Accept amount: {message.get('successful_count')}\n" \
               f"Decline amount: {message.get('failed_count')}\n" \
@@ -81,9 +132,12 @@ def send_notify(contacts, message):
         http_request_post(url, telegram_json_body)
 
 
-# url_1 = os.environ.get('URL_REPORTS')
-url = os.environ.get('URL_COUNT')
-creds = {'user': os.environ.get('BASIC_LOGIN'), 'pass': os.environ.get('BASIC_PASS')}
-message = get_transctions(url, creds)
-contacts = ['-457443920']
-send_notify(contacts, message)
+# url_shop_metrics = os.environ.get('URL_REPORTS')
+# url_provider_metrics = os.environ.get('URL_COUNT')
+# creds_shop = {'user': os.environ.get('BASIC_LOGIN_SHOP'), 'pass': os.environ.get('BASIC_PASS_SHOP')}
+# creds_provider = {'user': os.environ.get('BASIC_LOGIN_COUNT'), 'pass': os.environ.get('BASIC_PASS_COUNT')}
+# message = get_transctions(url_shop_metrics, creds_shop)
+# message2 = get_transctions(url_provider_metrics, creds_provider)
+# print(message2)
+# contacts = ['-457443920']
+#send_notify(contacts, message)
