@@ -129,3 +129,12 @@ def send_notify(contacts, message):
           "text": generate_message
         }
         http_request_post(url, telegram_json_body)
+
+# url_1 = os.environ.get('URL_REPORTS')
+url = os.environ.get('URL_COUNT')
+creds = {'user': os.environ.get('BASIC_LOGIN'), 'pass': os.environ.get('BASIC_PASS')}
+message = get_transctions(url, creds)
+contacts = ['-457443920', '-452186474']
+
+import sys
+send_notify(sys.argv, message)
